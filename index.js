@@ -8,8 +8,8 @@ let lastState = {lastImageURL : ""};
 const app = express();
 const port = 8080;
 
-// Where we will keep books
-let books = [];
+let model = "s864-hackathon-zoldh--2";
+let confidence = 0.7;
 
 app.use(cors());
 
@@ -17,14 +17,22 @@ app.use(cors());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
-app.post('/book', (req, res) => {
-    const book = req.body;
+app.post('/setConfidence', (req, res) => {
+    const body = req.body;
+    let c = body.confidence;
 
-    // Output the book to the console for debugging
-    console.log(book);
-    books.push(book);
+    confidence = c;
 
-    res.send('Book is added to the database');
+    res.send('confidence is set to' + confidence);
+});
+
+app.post('/setModel', (req, res) => {
+    const body = req.body;
+    let m = body.model;
+
+    model = m;
+
+    res.send('model is set to' + model);
 });
 
 app.listen(port, () => console.log(`Hello world app listening on port ${port}!`));
@@ -43,7 +51,7 @@ app.post('/sendimage', (req, res) => {
     
     axios({
       method: "POST",
-      url: "https://infer.roboflow.com/s864-hackathon-zoldh--2",
+      url: "https://infer.roboflow.com/" + model,
       params: {
           access_token: "ebhLpNC3LtVc",
           image: imgUrl
@@ -53,15 +61,19 @@ app.post('/sendimage', (req, res) => {
       console.log(response.data);
 
       let predictions = response.data.predictions
-      let accuratePredictions = predictions.filter(p=>p.confidence>0.1);
-      accuratePredictions.array.forEach(p => {
-        if (state[p.class]) {
-          state[p.class] = state[p.class] + 1;
+      let accuratePredictions = predictions.filter(p=>p.confidence>confidence);
+      let items = {};
+      accuratePredictions.forEach(p => {
+        if (items[p.class]) {
+          items[p.class] = items[p.class] + 1;
         }
         else {
-          state[p.class] = 1
+          items[p.class] = 1
         }
       });
+
+      state.items = items;
+      state.updated = new Date();
       lastState = state;
 
       res.send(response.data);
@@ -79,7 +91,7 @@ app.post('/testimage', (req, res) => {
     
     axios({
       method: "POST",
-      url: "https://infer.roboflow.com/s864-hackathon-zoldh--2",
+      url: "https://infer.roboflow.com/" + model,
       params: {
           access_token: "ebhLpNC3LtVc",
           image: imgUrl
